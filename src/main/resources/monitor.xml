@@ -16,7 +16,7 @@
         </task-arguments>
         <executable-task>
             <type>file</type>
-            <file os-type="linux">webDispatcher.sh</file>
+            <file os-type="linux">webDispatcherLinux.sh</file>
             <file os-type="aix">webDispatcherAIX.sh</file>
         </executable-task>
     </monitor-run-task>

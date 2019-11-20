@@ -109,12 +109,16 @@ class DistributionCoeficient extends Thread
                                     while (rs_total_by_host.next()){
                                         distributionCoeficient+=Math.abs(1-rs_total_by_host.getInt(4)/expectedValue);
                                     }
-
+                                    
+                                    Float final_distributionCoeficient;
+                                    final_distributionCoeficient = (distributionCoeficient/host_quantity)*100;
+                                    Long final_distributionCoeficientLong = final_distributionCoeficient.longValue();
                                     System.out.println("name=Custom Metrics|WebDispatcher|Load Distribution|"+
                                             url+"|"+
                                             method+
                                             "|Distribution coeficient,aggregator=AVERAGE,value="+
-                                            (distributionCoeficient/host_quantity)*100);
+                                            final_distributionCoeficientLong);
+                                    
                                  }
                                 stm.execute("delete from distribution");
                         h2connection.notify();
