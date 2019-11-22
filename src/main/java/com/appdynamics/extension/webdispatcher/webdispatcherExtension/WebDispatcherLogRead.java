@@ -32,8 +32,9 @@ import java.util.logging.Logger;
 public class WebDispatcherLogRead{
 	
         Logger LOGGER;// = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);  
+        String MetricRootProperty;
         
-        private void setUpLogger(){
+        /*private void setUpLogger(){
             try{
                 FileHandler fileTxt = new FileHandler("webDispatcher.log", 1000000, 5, true);
                 fileTxt.setFormatter(new SimpleFormatter());
@@ -42,10 +43,11 @@ public class WebDispatcherLogRead{
             catch (IOException e){
                 LOGGER.log(Level.WARNING, "Unable to write log: {0}", e.getMessage());
             }
-        }
+        }*/
         
-        public WebDispatcherLogRead(){
+        public WebDispatcherLogRead(String MetricRoot){
             LOGGER = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
+            MetricRootProperty = MetricRoot;
         }
         
         private boolean clearReadProperties(ConfigReader configuration){
@@ -55,7 +57,7 @@ public class WebDispatcherLogRead{
                 writeProperties.setProperty("last_file_length", "0");
                 writeProperties.setProperty("last_line_contents", "");
                 //System.out.println("Writing properties: "+writeProperties.toString().replace("{", "").replace("}", ""));
-                LOGGER.log(Level.WARNING, "Writing properties: {0}", writeProperties.toString().replace("{", "").replace("}", ""));
+                LOGGER.log(Level.INFO, "Writing properties: {0}", writeProperties.toString().replace("{", "").replace("}", ""));
                 configuration.setPropValues("read.properties", writeProperties);
                 return true;
             }
@@ -71,43 +73,195 @@ public class WebDispatcherLogRead{
             String[] log_fields;
             log_fields=newLine.split(" ");
             String[] URL = log_fields[5].split("\\?");
-            System.out.println("Processed line: "+newLine);
-            System.out.println("name=Custom Metrics|WebDispatcher|"+log_fields[14]+"|"+log_fields[4]+"|"+log_fields[11]+"|HTTP Response codes|"+log_fields[7]+",aggregator=AVERAGE,value=1");
-            System.out.println("name=Custom Metrics|WebDispatcher|"+log_fields[14]+"|"+log_fields[4]+"|"+URL[0]+"|HTTP Response code count|"+log_fields[7]+",aggregator=AVERAGE,value=1");
-            System.out.println("name=Custom Metrics|WebDispatcher|"+log_fields[14]+"|"+log_fields[4]+"|"+log_fields[11]+"|Response time,aggregator=AVERAGE,value="+log_fields[10].replace("ms", ""));
-            System.out.println("name=Custom Metrics|WebDispatcher|"+log_fields[14]+"|"+log_fields[4]+"|"+URL[0]+"|Response time,aggregator=AVERAGE,value="+log_fields[10].replace("ms", ""));
-            System.out.println("name=Custom Metrics|WebDispatcher|"+log_fields[14]+"|"+log_fields[4]+"|"+log_fields[11]+"|Request size,aggregator=AVERAGE,value="+log_fields[9]);
-            System.out.println("name=Custom Metrics|WebDispatcher|"+log_fields[14]+"|"+log_fields[4]+"|"+URL[0]+"|Request size,aggregator=AVERAGE,value="+log_fields[9]);
+            String SID, method, FQDN, HTTPCode, RequestSize, RequestResponseTime;
+            SID = log_fields[14].toUpperCase();
+            method = log_fields[4];
+            FQDN = log_fields[11];
+            HTTPCode = log_fields[7];
+            RequestSize = log_fields[9];
+            RequestResponseTime = log_fields[10];
+            //printing response code count for the FQDN
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|HTTP Response codes|"+
+                    method.toUpperCase()+"|"+
+                    HTTPCode+" Count,aggregator=AVERAGE,value=1");
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|HTTP Response codes|All Methods|"+
+                    HTTPCode+" Count,aggregator=AVERAGE,value=1");
+            //printing reponse times for the FQDN
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+"|"+
+                    method.toUpperCase()+" Response time,aggregator=AVERAGE,value="+RequestResponseTime.replace("ms", ""));
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|All Methods Response time,aggregator=AVERAGE,value="+RequestResponseTime.replace("ms", ""));
+            //printing request size for the FQDN
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|"+method.toUpperCase()+" Request size,aggregator=AVERAGE,value="+RequestSize);
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|All Methods Request size,aggregator=AVERAGE,value="+RequestSize);
+            
+            //printing response code for each URL request
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|Requests|"+URL[0]+
+                    "|HTTP Response codes|"+method.toUpperCase()+"|"+HTTPCode+" Count,aggregator=AVERAGE,value=1");
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|Requests|"+URL[0]+
+                    "|HTTP Response codes|All Methods|"+HTTPCode+" Count,aggregator=AVERAGE,value=1");            
+            //printing requestsize for each URL request
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|Requests|"+URL[0]+
+                    "|"+method.toUpperCase()+" Request size,aggregator=AVERAGE,value="+RequestSize);
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|Requests|"+URL[0]+
+                    "|All Methods Request size,aggregator=AVERAGE,value="+RequestSize);
+            //printing response time for each URL request
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|Requests|"+URL[0]+
+                    "|"+method.toUpperCase()+" Response time,aggregator=AVERAGE,value="+RequestResponseTime.replace("ms", ""));
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|Requests|"+URL[0]+
+                    "|All Methods Response time,aggregator=AVERAGE,value="+RequestResponseTime.replace("ms", ""));
         }
         
         private void processLine(String newLine, balancingData bd, Connection h2con){
             String[] log_fields;
             log_fields=newLine.toLowerCase().split(" ");
             String[] URL = log_fields[5].split("\\?");
-            //System.out.println("Processed line: "+newLine);
-            System.out.println("name=Custom Metrics|WebDispatcher|"+log_fields[14]+"|"+log_fields[4]+"|"+log_fields[11]+"|HTTP Response codes|"+log_fields[7]+",aggregator=AVERAGE,value=1");
-            System.out.println("name=Custom Metrics|WebDispatcher|"+log_fields[14]+"|"+log_fields[4]+"|"+URL[0]+"|HTTP Response code count|"+log_fields[7]+",aggregator=AVERAGE,value=1");
-            System.out.println("name=Custom Metrics|WebDispatcher|"+log_fields[14]+"|"+log_fields[4]+"|"+log_fields[11]+"|Response time,aggregator=AVERAGE,value="+log_fields[10].replace("ms", ""));
-            System.out.println("name=Custom Metrics|WebDispatcher|"+log_fields[14]+"|"+log_fields[4]+"|"+URL[0]+"|Response time,aggregator=AVERAGE,value="+log_fields[10].replace("ms", ""));
-            System.out.println("name=Custom Metrics|WebDispatcher|"+log_fields[14]+"|"+log_fields[4]+"|"+log_fields[11]+"|Request size,aggregator=AVERAGE,value="+log_fields[9]);
-            System.out.println("name=Custom Metrics|WebDispatcher|"+log_fields[14]+"|"+log_fields[4]+"|"+URL[0]+"|Request size,aggregator=AVERAGE,value="+log_fields[9]);
+            String SID, method, FQDN, HTTPCode, RequestSize, RequestResponseTime;
+            SID = log_fields[14].toUpperCase();
+            method = log_fields[4];
+            FQDN = log_fields[11];
+            HTTPCode = log_fields[7];
+            RequestSize = log_fields[9];
+            RequestResponseTime = log_fields[10];
+            //printing response code count for the FQDN
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|HTTP Response codes|"+
+                    method.toUpperCase()+"|"+
+                    HTTPCode+" Count,aggregator=AVERAGE,value=1");
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|HTTP Response codes|All Methods|"+
+                    HTTPCode+" Count,aggregator=AVERAGE,value=1");
+            //printing reponse times for the FQDN
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+"|"+
+                    method.toUpperCase()+" Response time,aggregator=AVERAGE,value="+RequestResponseTime.replace("ms", ""));
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|All Methods Response time,aggregator=AVERAGE,value="+RequestResponseTime.replace("ms", ""));
+            //printing request size for the FQDN
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|"+method.toUpperCase()+" Request size,aggregator=AVERAGE,value="+RequestSize);
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|All Methods Request size,aggregator=AVERAGE,value="+RequestSize);
+            
+            //printing response code for each URL request
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|Requests|"+URL[0]+
+                    "|HTTP Response codes|"+method.toUpperCase()+"|"+HTTPCode+" Count,aggregator=AVERAGE,value=1");
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|Requests|"+URL[0]+
+                    "|HTTP Response codes|All Methods|"+HTTPCode+" Count,aggregator=AVERAGE,value=1");            
+            //printing requestsize for each URL request
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|Requests|"+URL[0]+
+                    "|"+method.toUpperCase()+" Request size,aggregator=AVERAGE,value="+RequestSize);
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|Requests|"+URL[0]+
+                    "|All Methods Request size,aggregator=AVERAGE,value="+RequestSize);
+            //printing response time for each URL request
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|Requests|"+URL[0]+
+                    "|"+method.toUpperCase()+" Response time,aggregator=AVERAGE,value="+RequestResponseTime.replace("ms", ""));
+            System.out.println("name=Custom Metrics|"+
+                    MetricRootProperty+
+                    "|General Metrics|"+
+                    FQDN+" - "+SID+
+                    "|Requests|"+URL[0]+
+                    "|All Methods Response time,aggregator=AVERAGE,value="+RequestResponseTime.replace("ms", ""));
                 try {
                     Statement stm = h2con.createStatement();
                     try {
                         String query="select * from distribution where method ='"+log_fields[4]+"' and url = '"+log_fields[11]+"' and target_host = '"+log_fields[15]+"'";
                     }
                     catch (StringIndexOutOfBoundsException e){
-                        LOGGER.log(Level.SEVERE, "Error manipulating log file fields, log file format might have changed. Please fix that to have metrics properly collected: {0}", e.getMessage());
+                        LOGGER.log(Level.WARNING, "Error manipulating log file fields, log file format might have changed. Please fix that to have metrics properly collected: {0}", e.getMessage());
                     }
                     ResultSet rs = stm.executeQuery("select * from distribution where method ='"+log_fields[4]+"' and url = '"+log_fields[11]+"' and target_host = '"+log_fields[15]+"'");
                     if (rs.next()) {
                         int updateReqCount = rs.getInt("request_number")+1;
                         stm.execute("update distribution set request_number = "+updateReqCount+" where (method = '"+log_fields[4]+"' and url = '"+log_fields[11]+"' and target_host = '"+log_fields[15]+"')");
-                        LOGGER.log(Level.WARNING, "Processed line: update {0}", newLine);
+                        LOGGER.log(Level.INFO, "Processed line: update {0}", newLine);
                     }
                     else{
                         stm.execute("insert into distribution values('"+log_fields[4]+"','"+log_fields[11]+"','"+log_fields[15]+"',1)");
-                        LOGGER.log(Level.WARNING, "Processed line: insert {0}", newLine);
+                        LOGGER.log(Level.INFO, "Processed line: insert {0}", newLine);
                     }
                 }
                 catch (SQLException ex){
@@ -123,7 +277,7 @@ public class WebDispatcherLogRead{
             //System.out.println();
             //System.out.println("Process file...");
             //System.out.println("Processing file: "+path.getFileName());
-            LOGGER.log(Level.WARNING, "Processing file: {0}", path.getFileName());
+            LOGGER.log(Level.INFO, "Processing file: {0}", path.getFileName());
             boolean moreLineExist;
             String newLine="";
             Long finalPosition=initialPosition;
@@ -142,7 +296,7 @@ public class WebDispatcherLogRead{
                         }
                     }
                     catch (IOException e){
-                        LOGGER.log(Level.WARNING, "Line does no exist on this file, this file will not be processed.");
+                        LOGGER.log(Level.INFO, "Line does no exist on this file, this file will not be processed.");
                         return;
                     }
                 }
@@ -161,7 +315,7 @@ public class WebDispatcherLogRead{
                     catch (Exception e) {
                             moreLineExist=false;
                             //System.out.println("Initial position: "+initialPosition+" Exception: "+e.getMessage());
-                            LOGGER.log(Level.WARNING, "Reached end of file while trying to read position: {0}", initialPosition+i+1);
+                            LOGGER.log(Level.INFO, "Reached end of file while trying to read position: {0}", initialPosition+i+1);
                             if (rotated == true) finalPosition=0L;
                             else finalPosition=initialPosition+i;
                             i=0L;
@@ -171,7 +325,7 @@ public class WebDispatcherLogRead{
                                 writeProperties.setProperty("last_file_length", Long.toString(Files.size(path)));
                                 writeProperties.setProperty("last_line_contents", newLine);
                                 //System.out.println("Writing properties: "+writeProperties.toString().replace("{", "").replace("}", ""));
-                                LOGGER.log(Level.WARNING, "Writing read.properties: {0}", writeProperties.toString().replace("{", "").replace("}", ""));
+                                LOGGER.log(Level.INFO, "Writing read.properties: {0}", writeProperties.toString().replace("{", "").replace("}", ""));
                                 configuration.setPropValues("read.properties", writeProperties);
                             }
                             catch (IOException e2){
@@ -187,8 +341,8 @@ public class WebDispatcherLogRead{
         
         public void processFile(Path path, Long initialPosition, ConfigReader configuration, boolean rotated, balancingData bd, Connection h2con){
 
-            if (rotated == true) LOGGER.log(Level.WARNING, "Processing rotated file: {0}", path.getFileName());
-            else LOGGER.log(Level.WARNING, "Processing NON rotated file: {0}", path.getFileName());
+            if (rotated == true) LOGGER.log(Level.INFO, "Processing rotated file: {0}", path.getFileName());
+            else LOGGER.log(Level.INFO, "Processing NON rotated file: {0}", path.getFileName());
             boolean moreLineExist;
             String newLine="";
             Long finalPosition=initialPosition;
@@ -207,7 +361,7 @@ public class WebDispatcherLogRead{
                         }
                     }
                     catch (IOException e){
-                        LOGGER.log(Level.WARNING, "Line does no exist on this file, this file will not be processed.");
+                        LOGGER.log(Level.INFO, "Line does no exist on this file, this file will not be processed.");
                         
                         return;
                     }
@@ -216,7 +370,7 @@ public class WebDispatcherLogRead{
             catch (IOException f){
                 LOGGER.log(Level.WARNING, "Exception while reading read.properties: {0}", f.getMessage());
             }
-            LOGGER.log(Level.WARNING, "Starting to read file at position: {0}", initialPosition+i);
+            LOGGER.log(Level.INFO, "Starting to read file at position: {0}", initialPosition+i);
             while(moreLineExist) {
                     try (Stream<String> lines = Files.lines(path)) {
                             //i++;
@@ -227,7 +381,7 @@ public class WebDispatcherLogRead{
                     }
                     catch (Exception e) {
                             moreLineExist=false;
-                            LOGGER.log(Level.WARNING, "Reached end of file while trying to read position: {0}", initialPosition+i+1);
+                            LOGGER.log(Level.INFO, "Reached end of file while trying to read position: {0}", initialPosition+i+1);
                             if (rotated == true) finalPosition=0L;
                             else finalPosition=initialPosition+i;
                             i=0L;
@@ -237,7 +391,7 @@ public class WebDispatcherLogRead{
                                 writeProperties.setProperty("last_file_length", Long.toString(Files.size(path)));
                                 writeProperties.setProperty("last_line_contents", newLine);
                                 //System.out.println("Writing properties: "+writeProperties.toString().replace("{", "").replace("}", ""));
-                                LOGGER.log(Level.WARNING, "Writing read.properties: {0}", writeProperties.toString().replace("{", "").replace("}", ""));
+                                LOGGER.log(Level.INFO, "Writing read.properties: {0}", writeProperties.toString().replace("{", "").replace("}", ""));
                                 configuration.setPropValues("read.properties", writeProperties);
                             }
                             catch (IOException e2){
@@ -255,7 +409,7 @@ public class WebDispatcherLogRead{
             try (Stream<Path> selectMostRecentLogWalk = Files.walk(Paths.get(log_file_location))) {
                                             List<String> selectMostRecentLogResult;
                                             
-                                            LOGGER.log(Level.WARNING, "Search file filter: {0}", log_file_name.replace(".log", ""));
+                                            LOGGER.log(Level.INFO, "Search file filter: {0}", log_file_name.replace(".log", ""));
                                             selectMostRecentLogResult = selectMostRecentLogWalk
                                                     .filter(Files::isRegularFile)
                                                     .filter(p->(p.getFileName().toString().startsWith(log_file_name.replace(".log", "")) && (p.getFileName().toString().contains(".log"))))
@@ -295,7 +449,7 @@ public class WebDispatcherLogRead{
         
 	public void ReadFile(int readIntervalSeconds, String log_file_location, String log_file_name, balancingData bd) {
 		ConfigReader configuration = new ConfigReader();
-                setUpLogger();
+               // setUpLogger();
                 
                 if (clearReadProperties(configuration)) LOGGER.log(Level.WARNING, "Brand new execution, clearing read.properties");
                 else LOGGER.log(Level.WARNING, "There was a problem clearing the read.properties file, please check that and restart the machine agent.");
@@ -317,26 +471,27 @@ public class WebDispatcherLogRead{
                         do {
                             single_file_name=GetMostRecentLogFile(log_file_location, log_file_name);
                             if (single_file_name.equals("")) {
-                                LOGGER.log(Level.WARNING, "There is no log file present. Extension will not work properly. Please check the configuration and restart the machine agent.");
+                                LOGGER.log(Level.WARNING, "There is no log file present. Extension will keep waiting for a log file. Please check the log generation or the configuration and restart the machine agent if necessary.");
                                 //System.out.println("There is no log file present. Extension will not work properly. Please check the configuration and restart the machine agent.");
-                                System.out.println("name=Custom Metrics|WebDispatcher|log_file_not_present,aggregator=AVERAGE,value=1");
+                                System.out.println("name=Custom Metrics|"+MetricRootProperty+"|log_file_not_present,aggregator=AVERAGE,value=1");
                                 Thread.sleep(1000);
                             }
                             else{
-                                System.out.println("name=Custom Metrics|WebDispatcher|log_file_not_present,aggregator=AVERAGE,value=0");
+                                LOGGER.log(Level.INFO, "Log file location: "+log_file_location+"/"+single_file_name);
+                                System.out.println("name=Custom Metrics|"+MetricRootProperty+"|log_file_not_present,aggregator=AVERAGE,value=0");
                             }
                         } while (single_file_name.equals(""));
                         log_file_name = log_file_location+"/"+single_file_name;
 			
 			while (true) {
 				//System.out.println("New loo: "+iterations);
-                                 LOGGER.log(Level.WARNING, "New loop: {0}", iterations);
+                                 LOGGER.log(Level.INFO, "New file read loop: {0}", iterations);
 				configProperties = configuration.getPropValues("read.properties");
 				String position = configProperties.getProperty("last_position");
                                  String lastLineContents = configProperties.getProperty("last_line_contents");
 				previousFileSize = Long.parseLong(configProperties.getProperty("last_file_length"));
 				//System.out.println("Position: "+ position);
-                                LOGGER.log(Level.WARNING, "Position: {0}", position);
+                                LOGGER.log(Level.INFO, "Position: {0}", position);
 				File log_file = new File(log_file_name);
 				fileLength  = log_file.length();
 				//checking with have already read the file. If we haven't on the first interation of the loop all available lines should be read.
@@ -348,7 +503,7 @@ public class WebDispatcherLogRead{
                             
 				if (fileSize<previousFileSize) {//file has rotated, we need to read the previous file before reading the new one.
                                     final Long currentPosition = initialPosition;
-                                        LOGGER.log(Level.WARNING, "Parent from log file: {0}", log_file.getParent());
+                                        LOGGER.log(Level.INFO, "Parent from log file: {0}", log_file.getParent());
                                         try (Stream<Path> walk = Files.walk(Paths.get(log_file.getParent()))) {
                                             List<String> result;
                                             result = walk.filter(Files::isRegularFile)
@@ -371,13 +526,13 @@ public class WebDispatcherLogRead{
                                                     int index = i.lastIndexOf(File.separator);
                                                     String relative_file_name = i.substring(index+1);
                                                     if ((relative_file_name.startsWith(log_file.getName().replace(".log", "")))&&(relative_file_name.contains(".log"))){
-                                                    LOGGER.log(Level.WARNING, "Rotated file to process: {0}", relative_file_name);
-                                                        LOGGER.log(Level.WARNING, "Complete path to rotated file to process: {0}", i);
+                                                    LOGGER.log(Level.INFO, "Rotated file to process: {0}", relative_file_name);
+                                                        LOGGER.log(Level.INFO, "Complete path to rotated file to process: {0}", i);
                                                         try {
                                                             long time_difference = Files.getLastModifiedTime(Paths.get(i)).toMillis()-System.currentTimeMillis();
                                                             if (time_difference<=1500){//file is within time range, lets read an see we find the line stored
                                                               //System.out.println("We found a file: "+i+"FileTime: "+ Files.getLastModifiedTime(Paths.get(i)).toString());
-                                                              LOGGER.log(Level.WARNING, "Found a file to process {0}: ", i);
+                                                              LOGGER.log(Level.INFO, "Found a file to process {0}: ", i);
                                                               //result.
                                                               
                                                                 processFile(Paths.get(i), currentPosition, configuration, true, bd);
@@ -392,6 +547,7 @@ public class WebDispatcherLogRead{
                                                     
                                                         });
                                          } catch (IOException e) {
+                                             LOGGER.log(Level.WARNING, "Error while walking through files: ", e.getMessage());
                                              e.printStackTrace();
                                          }
 				}
@@ -412,7 +568,7 @@ public class WebDispatcherLogRead{
         
         public void ReadFile(int readIntervalSeconds, String log_file_location, String log_file_name, balancingData bd, Connection h2con) {
 		ConfigReader configuration = new ConfigReader();
-                setUpLogger();
+                //setUpLogger();
                 if (clearReadProperties(configuration)) LOGGER.log(Level.WARNING, "Brand new execution, clearing read.properties");
                 else LOGGER.log(Level.WARNING, "There was a problem clearing the read.properties file, please check that and restart the machine agent.");
 		try {
@@ -433,27 +589,27 @@ public class WebDispatcherLogRead{
                         do {
                             single_file_name=GetMostRecentLogFile(log_file_location, log_file_name);
                             if (single_file_name.equals("")) {
-                                LOGGER.log(Level.WARNING, "There is no log file present. Extension will not work properly. Please check the configuration and restart the machine agent.");
+                                LOGGER.log(Level.WARNING, "There is no log file present. Extension will keep waiting for a log file. Please check the log generation or the configuration and restart the machine agent if necessary.");
                                 //System.out.println("There is no log file present. Extension will not work properly. Please check the configuration and restart the machine agent.");
-                                System.out.println("name=Custom Metrics|WebDispatcher|log_file_not_present,aggregator=AVERAGE,value=1");
+                                System.out.println("name=Custom Metrics|"+MetricRootProperty+"|log_file_not_present,aggregator=AVERAGE,value=1");
                                 Thread.sleep(1000);
                             }
                             else{
-                                LOGGER.log(Level.WARNING, "Log file location: "+log_file_location+"/"+single_file_name);
-                                System.out.println("name=Custom Metrics|WebDispatcher|log_file_not_present,aggregator=AVERAGE,value=0");
+                                LOGGER.log(Level.INFO, "Log file location: "+log_file_location+"/"+single_file_name);
+                                System.out.println("name=Custom Metrics|"+MetricRootProperty+"|log_file_not_present,aggregator=AVERAGE,value=0");
                             }
                         } while (single_file_name.equals(""));
                         log_file_name = log_file_location+"/"+single_file_name;
 			
 			while (true) {
 				//System.out.println("New loo: "+iterations);
-                                 LOGGER.log(Level.WARNING, "New loop: {0}", iterations);
+                                 LOGGER.log(Level.INFO, "New file read loop: {0}", iterations);
 				configProperties = configuration.getPropValues("read.properties");
 				String position = configProperties.getProperty("last_position");
                                  String lastLineContents = configProperties.getProperty("last_line_contents");
 				previousFileSize = Long.parseLong(configProperties.getProperty("last_file_length"));
 				//System.out.println("Position: "+ position);
-                                LOGGER.log(Level.WARNING, "Position: {0}", position);
+                                LOGGER.log(Level.INFO, "Position: {0}", position);
 				File log_file = new File(log_file_name);
 				fileLength  = log_file.length();
 				//checking with have already read the file. If we haven't on the first interation of the loop all available lines should be read.
@@ -467,7 +623,7 @@ public class WebDispatcherLogRead{
                                     final Long currentPosition = initialPosition;
                                         //System.out.println("Todo###############################################################...");
                                         //System.out.println(log_file.getParent());
-                                        LOGGER.log(Level.WARNING, "Parent from log file: {0}", log_file.getParent());
+                                        LOGGER.log(Level.INFO, "Parent from log file: {0}", log_file.getParent());
                                         try (Stream<Path> walk = Files.walk(Paths.get(log_file.getParent()))) {
                                             List<String> result;
                                             result = walk.filter(Files::isRegularFile)
@@ -490,12 +646,12 @@ public class WebDispatcherLogRead{
                                                     int index = i.lastIndexOf(File.separator);
                                                     String relative_file_name = i.substring(index+1);
                                                     if ((relative_file_name.startsWith(log_file.getName().replace(".log", "")))&&(relative_file_name.contains(".log"))){
-                                                    LOGGER.log(Level.WARNING, "Rotated file to process: {0}", relative_file_name);
-                                                    LOGGER.log(Level.WARNING, "Complete path to rotated file to process: {0}", i);
+                                                    LOGGER.log(Level.INFO, "Rotated file to process: {0}", relative_file_name);
+                                                    LOGGER.log(Level.INFO, "Complete path to rotated file to process: {0}", i);
                                                         try {
                                                             long time_difference = Files.getLastModifiedTime(Paths.get(i)).toMillis()-System.currentTimeMillis();
                                                             if (time_difference<=1500){//file is within time range, lets read an see we find the line stored
-                                                              LOGGER.log(Level.WARNING, "Found a file to process {0}: ", i);
+                                                              LOGGER.log(Level.INFO, "Found a file to process {0}: ", i);
                                                                 synchronized(h2con){
                                                                     processFile(Paths.get(i), currentPosition, configuration, true, bd, h2con);
                                                                     h2con.notify();
@@ -510,6 +666,7 @@ public class WebDispatcherLogRead{
                                                     
                                                         });
                                          } catch (IOException e) {
+                                             LOGGER.log(Level.WARNING, "Error while walking through files: ", e.getMessage());
                                              e.printStackTrace();
                                          }
 				}

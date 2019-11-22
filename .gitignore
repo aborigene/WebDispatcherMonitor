@@ -2,3 +2,6 @@ target/*
 target/WebDispatcherMonitor-0.0.1.zip
 id_rsa
 id_rsa.pub
+webDispatcher.log*
+config.properties
+read.properties
