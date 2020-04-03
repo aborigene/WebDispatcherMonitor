@@ -26,24 +26,14 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.NoSuchElementException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class WebDispatcherLogRead{
 	
-        Logger LOGGER;// = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);  
+        Logger LOGGER;
         String MetricRootProperty;
-        
-        /*private void setUpLogger(){
-            try{
-                FileHandler fileTxt = new FileHandler("webDispatcher.log", 1000000, 5, true);
-                fileTxt.setFormatter(new SimpleFormatter());
-                LOGGER.addHandler(fileTxt);
-            } 
-            catch (IOException e){
-                LOGGER.log(Level.WARNING, "Unable to write log: {0}", e.getMessage());
-            }
-        }*/
         
         public WebDispatcherLogRead(String MetricRoot){
             LOGGER = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
@@ -352,7 +342,21 @@ public class WebDispatcherLogRead{
             try{
                 if ((rotated == true)&&(!configuration.getPropValues("read.properties").get("last_position").equals("0"))){
                     try (Stream<String> lineChecker = Files.lines(path)) {
-                        newLine = lineChecker.skip(initialPosition).findFirst().get();
+                        /*boolean empty_line = true;
+                        int empty_line_counter = 0;
+                        while (empty_line){*/
+                            try {
+                                newLine = lineChecker.skip(initialPosition).findFirst().get();
+                                //empty_line = false;
+                                
+                            }
+                            catch (NoSuchElementException nse){
+                                LOGGER.log(Level.INFO, "Found an empty line, ignoring and moving on.");
+                                /*empty_line_counter++;
+                                initialPosition+=empty_line_counter;
+                                empty_line = true;*/
+                            }
+                        //}
                         if (!newLine.equals(configuration.getPropValues("read.properties").get("last_line_contents"))){
                             return;
                         } 
@@ -374,7 +378,12 @@ public class WebDispatcherLogRead{
             while(moreLineExist) {
                     try (Stream<String> lines = Files.lines(path)) {
                             //i++;
-                            newLine = lines.skip(initialPosition+i+1).findFirst().get();
+                            //try{
+                                newLine = lines.skip(initialPosition+i+1).findFirst().get();
+                            //}
+                            //catch(NoSuchElementException nse){
+                            //    LOGGER.log(Level.INFO, "Found an empty line, checking nexy line");
+                            //}
                             i++;
                             processLine(newLine, bd, h2con);
                             
