@@ -25,13 +25,15 @@ class CoreActivities extends Thread implements Runnable
     Connection h2connection;
     String test_value;
     Logger LOGGER;
-	public CoreActivities(balancingData bd, Connection h2con) {
+	public CoreActivities(balancingData bd, Connection h2con, Logger LocalLogger) {
 		CoreActivities_bd = bd;
                 h2connection = h2con;
+                LOGGER = LocalLogger;
 	}
         
-        public CoreActivities(balancingData bd) {
+        public CoreActivities(balancingData bd, Logger LocalLogger) {
 		CoreActivities_bd = bd;
+                LOGGER = LocalLogger;
 	}
 	
 	public void run() { 
@@ -62,15 +64,17 @@ class DistributionCoeficient extends Thread
 	Dictionary<String, String> URL_total_reqs;
 	Dictionary<String, String> URL_host_total_reqs;
         
-	public DistributionCoeficient(balancingData bd, Connection h2con) {
+	public DistributionCoeficient(balancingData bd, Connection h2con, Logger LocalLogger) {
             DistributionCoeficient_bd = bd;
             h2connection = h2con;
-            LOGGER = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
+            //LOGGER = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
+            LOGGER = LocalLogger;
         }
 	
-        public DistributionCoeficient(balancingData bd) {
+        public DistributionCoeficient(balancingData bd, Logger LocalLogger) {
             DistributionCoeficient_bd = bd;
-            LOGGER = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
+            //LOGGER = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
+            LOGGER = LocalLogger;
         }
 	
     public void run() 
@@ -198,6 +202,7 @@ public class ExtensionController
         try{
             FileHandler fileTxt = new FileHandler("webDispatcher.log", 10000000, 5, true);
             fileTxt.setFormatter(new SimpleFormatter());
+            //fileTxt.ge
             LOGGER.addHandler(fileTxt);
             LOGGER.setLevel(Level.WARNING);
             LOGGER.setUseParentHandlers(false);//removeHandler(ConsoleHandler.class);
@@ -238,10 +243,10 @@ public class ExtensionController
             Statement stm = con.createStatement();
             stm.execute("create table distribution (method varchar(10) not null, url varchar(255) not null, target_host varchar(255) not null, request_number int not null)");
             
-            Runnable CoreActivitiesRunnable = new CoreActivities(balancingDataInstance, con);
+            Runnable CoreActivitiesRunnable = new CoreActivities(balancingDataInstance, con, LOGGER);
             new Thread(CoreActivitiesRunnable).start();
             
-            Runnable DistributionCoeficient = new DistributionCoeficient(balancingDataInstance, con);
+            Runnable DistributionCoeficient = new DistributionCoeficient(balancingDataInstance, con, LOGGER);
             new Thread(DistributionCoeficient).start();
 
         } catch (SQLException ex) {
@@ -250,10 +255,10 @@ public class ExtensionController
             //lgr.log(Level.SEVERE, ex.getMessage(), ex);
             LOGGER.log(Level.WARNING, "H2 Database could not be initialized, balance distribution will not be possible: ", ex.getMessage());
             
-            Runnable CoreActivitiesRunnable = new CoreActivities(balancingDataInstance);
+            Runnable CoreActivitiesRunnable = new CoreActivities(balancingDataInstance, LOGGER);
             new Thread(CoreActivitiesRunnable).start();
             
-            Runnable DistributionCoeficient = new DistributionCoeficient(balancingDataInstance);
+            Runnable DistributionCoeficient = new DistributionCoeficient(balancingDataInstance, LOGGER);
             new Thread(DistributionCoeficient).start();
         }
     }

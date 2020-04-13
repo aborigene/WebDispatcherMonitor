@@ -26,19 +26,35 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class WebDispatcherLogRead{
 	
-        Logger LOGGER;
+        final private static Logger LOGGER = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
         String MetricRootProperty;
         
-        public WebDispatcherLogRead(String MetricRoot){
-            LOGGER = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
+        public WebDispatcherLogRead(String MetricRoot){            
             MetricRootProperty = MetricRoot;
+            setUpLogger();
         }
+        
+        private static void setUpLogger(){
+        try{
+            FileHandler fileTxt = new FileHandler("webDispatcherLogReader.log", 10000000, 5, true);
+            fileTxt.setFormatter(new SimpleFormatter());
+            //fileTxt.ge
+            LOGGER.addHandler(fileTxt);
+            LOGGER.setLevel(Level.INFO);
+            LOGGER.setUseParentHandlers(false);//removeHandler(ConsoleHandler.class);
+        } 
+        catch (IOException e){
+            LOGGER.log(Level.WARNING, "Unable to write log: {0}", e.getMessage());
+        }
+    }
         
         private boolean clearReadProperties(ConfigReader configuration){
             try{
@@ -366,7 +382,6 @@ public class WebDispatcherLogRead{
                     }
                     catch (IOException e){
                         LOGGER.log(Level.INFO, "Line does no exist on this file, this file will not be processed.");
-                        
                         return;
                     }
                 }
@@ -539,7 +554,7 @@ public class WebDispatcherLogRead{
                                                         LOGGER.log(Level.INFO, "Complete path to rotated file to process: {0}", i);
                                                         try {
                                                             long time_difference = Files.getLastModifiedTime(Paths.get(i)).toMillis()-System.currentTimeMillis();
-                                                            if (time_difference<=1500){//file is within time range, lets read an see we find the line stored
+                                                            if (time_difference<=150000){//file is within time range, lets read an see we find the line stored
                                                               //System.out.println("We found a file: "+i+"FileTime: "+ Files.getLastModifiedTime(Paths.get(i)).toString());
                                                               LOGGER.log(Level.INFO, "Found a file to process {0}: ", i);
                                                               //result.
@@ -575,7 +590,7 @@ public class WebDispatcherLogRead{
 		}
 	}
         
-        public void ReadFile(int readIntervalSeconds, String log_file_location, String log_file_name, balancingData bd, Connection h2con) {
+        public void ReadFile(int readIntervalSeconds, String log_file_location, String configured_log_file_name, balancingData bd, Connection h2con) {
 		ConfigReader configuration = new ConfigReader();
                 //setUpLogger();
                 if (clearReadProperties(configuration)) LOGGER.log(Level.WARNING, "Brand new execution, clearing read.properties");
@@ -589,6 +604,7 @@ public class WebDispatcherLogRead{
 			Long finalPosition, initialPosition; 
 			initialPosition = 0L;
 			finalPosition = 0L;
+                        String log_file_name = configured_log_file_name;
                         String most_recent_log_file_name=log_file_name;
                         
                         //getting most recent file name based on the file name patter
@@ -627,16 +643,17 @@ public class WebDispatcherLogRead{
 				initialPosition = Long.parseLong(position);
 				Path path = Paths.get(log_file_name);
 				Long fileSize = Files.size(path);
-                            
-				if (fileSize<previousFileSize) {//file has rotated, we need to read the previous file before reading the new one.
+                                LOGGER.log(Level.INFO, "Current file size: {0} ", fileSize);
+                                LOGGER.log(Level.INFO, "Previous file size: {0} ", previousFileSize);
+				if ((fileSize<previousFileSize) && (fileSize!=0)){//file has rotated, we need to read the previous file before reading the new one.
                                     final Long currentPosition = initialPosition;
-                                        //System.out.println("Todo###############################################################...");
-                                        //System.out.println(log_file.getParent());
                                         LOGGER.log(Level.INFO, "Parent from log file: {0}", log_file.getParent());
                                         try (Stream<Path> walk = Files.walk(Paths.get(log_file.getParent()))) {
                                             List<String> result;
                                             result = walk.filter(Files::isRegularFile)
-                                                    .map(x -> x.toString()).collect(Collectors.toList());
+                                                    .map(x -> x.toString())
+                                                    .filter(f -> f.endsWith(".log"))
+                                                    .filter(f -> f.contains(configured_log_file_name.replace(".log", ""))).collect(Collectors.toList());
                                             result.sort(new Comparator<String>(){//sorting the stream by file modified time from newest to oldest
                                                 @Override
                                                 public int compare(String f1, String f2){
@@ -651,16 +668,22 @@ public class WebDispatcherLogRead{
                                                 }
                                             });
                                             
+                                                result.forEach(i->{LOGGER.log(Level.INFO, "Listing files: {0}", i);});
                                                 result.forEach(i->{
                                                     int index = i.lastIndexOf(File.separator);
                                                     String relative_file_name = i.substring(index+1);
-                                                    if ((relative_file_name.startsWith(log_file.getName().replace(".log", "")))&&(relative_file_name.contains(".log"))){
+                                                    //if ((relative_file_name.startsWith(configured_log_file_name))&&(relative_file_name.contains(".log"))){
                                                     LOGGER.log(Level.INFO, "Rotated file to process: {0}", relative_file_name);
                                                     LOGGER.log(Level.INFO, "Complete path to rotated file to process: {0}", i);
                                                         try {
-                                                            long time_difference = Files.getLastModifiedTime(Paths.get(i)).toMillis()-System.currentTimeMillis();
-                                                            if (time_difference<=1500){//file is within time range, lets read an see we find the line stored
+                                                            long time_difference = System.currentTimeMillis()-Files.getLastModifiedTime(Paths.get(i)).toMillis();
+                                                            LOGGER.log(Level.INFO, "Candidate to process {0}: ", i);
+                                                            LOGGER.log(Level.INFO, "Time difference {0}: ", time_difference);
+                                                            LOGGER.log(Level.INFO, "Current time {0}: ", System.currentTimeMillis());
+                                                            LOGGER.log(Level.INFO, "File time time {0}: ", Files.getLastModifiedTime(Paths.get(i)).toMillis());
+                                                            if (time_difference<=360000){//file is within 6 minute time range, lets read an see we find the line stored, ideally this would be 1.5 minute adding more time to acommodate to some fluctuations
                                                               LOGGER.log(Level.INFO, "Found a file to process {0}: ", i);
+                                                              LOGGER.log(Level.INFO, "Current position {0}: ", currentPosition);
                                                                 synchronized(h2con){
                                                                     processFile(Paths.get(i), currentPosition, configuration, true, bd, h2con);
                                                                     h2con.notify();
@@ -671,7 +694,7 @@ public class WebDispatcherLogRead{
                                                             LOGGER.log(Level.WARNING, "Error reading rotated files: ", e.getMessage());
                                                         }
                                                         
-                                                    }
+                                                    //}
                                                     
                                                         });
                                          } catch (IOException e) {
@@ -680,10 +703,23 @@ public class WebDispatcherLogRead{
                                          }
 				}
 				else {
-					synchronized(h2con){
-                                            processFile(path, initialPosition, configuration, false, bd, h2con);
-                                            h2con.notify();
+                                    if (fileSize>previousFileSize){//current read file has grown, we need to continue processing it
+                                         synchronized(h2con){
+                                             processFile(path, initialPosition, configuration, false, bd, h2con);
+                                             h2con.notify();
+                                         }    
+                                    }
+                                    else{//file has not changed or current file is zero length, we need to check exactly what happened
+                                        long currentFileLastChangeTime = Files.getLastModifiedTime(Paths.get(log_file_name)).toMillis();
+                                        String new_log_filename = ProcessNewFiles(log_file_location, configured_log_file_name, bd, h2con, currentFileLastChangeTime, configuration);
+                                        if (!new_log_filename.equals("")){//no new files have been found will keep watching for new files
+                                            LOGGER.log(Level.WARNING, "All new files have been processed, updating file handler loop and continuing. New file to read is {0}.", new_log_filename);
+                                            log_file_name = new_log_filename;
                                         }
+                                        else{
+                                            LOGGER.log(Level.WARNING, "There were no knew files to process, will keep watching for new files or updates to the current one. Current file is {0}.", log_file_name);
+                                        }
+                                    }
 				}
 				readWriteFileAccess.close();
 				Thread.sleep(readIntervalSeconds*1000);
@@ -696,4 +732,73 @@ public class WebDispatcherLogRead{
 			e.printStackTrace();
 		}
 	}
+        
+        private String ProcessNewFiles(String log_file_location, String configured_log_file_name, balancingData bd, Connection h2con, long currentFileLastChangedTime, ConfigReader configuration){
+            String new_file_name = "";
+            LOGGER.log(Level.INFO, "Starting to process newFiles at {0}...", log_file_location);
+            LOGGER.log(Level.INFO, "Configured file name {0}...", configured_log_file_name);
+            //configured_log_file_name=;
+            try (Stream<Path> walk = Files.walk(Paths.get(log_file_location))) {
+                List<String> result = walk.filter(Files::isRegularFile)
+                        .map(x -> x.toString())
+                        .filter(f -> f.endsWith(".log"))
+                        .filter(f -> f.contains(configured_log_file_name.replace(".log", ""))).collect(Collectors.toList());
+                        //.filter(pathItem -> pathItem.contains(".log")).collect(Collectors.toList());
+                result.sort(new Comparator<String>(){//sorting the stream by file modified time from oldest to newest
+                    @Override
+                    public int compare(String f1, String f2){
+                        try {
+                            return Files.getLastModifiedTime(Paths.get(f1)).compareTo(Files.getLastModifiedTime(Paths.get(f2)));//from oldest to newest 
+                        }
+                        catch (IOException e){
+                            LOGGER.log(Level.WARNING, "There was an error while sorting files, file list will not be sorted: {0}", e.getMessage());
+                            return 0;
+                        }
+                    }
+                });
+
+                result.forEach(item->{
+                    LOGGER.log(Level.INFO, "Found an item {0}: ", item);
+                    
+                    LOGGER.log(Level.INFO, "Contains {0} ", item.contains(configured_log_file_name));
+
+                });
+                for(Iterator<String> i = result.iterator(); i.hasNext();){
+                    String item = i.next();
+                    LOGGER.log(Level.INFO, "Found an item {0}: ", item);
+                    int index = item.lastIndexOf(File.separator);
+                    String relative_file_name = item.substring(index+1);
+                    if ((relative_file_name.startsWith(configured_log_file_name))&&(relative_file_name.contains(".log"))){
+                        try {
+                            long newFileChangeTime = Files.getLastModifiedTime(Paths.get(item)).toMillis();
+                            if (newFileChangeTime>=currentFileLastChangedTime){//file is within time range, lets read an see we find the line stored
+                              LOGGER.log(Level.INFO, "Found a file to process {0}: ", item);
+                                synchronized(h2con){
+                                    processFile(Paths.get(item), 0L, configuration, true, bd, h2con);
+                                    h2con.notify();
+                                }
+                            }
+                        }
+                        catch (IOException e){
+                            LOGGER.log(Level.WARNING, "Error reading new files after rotation: ", e.getMessage());
+                        }
+                    }
+                    if (!i.hasNext()) new_file_name = item;
+                }
+
+                
+            } 
+            catch (IOException e) {
+                LOGGER.log(Level.WARNING, "Error while walking through files: ", e.getMessage());
+                e.printStackTrace();
+            }
+            return new_file_name;
+        
+        }
+        
+        /*private void processNewFilesResult(String item, int result_size, String configured_log_file_name, long currentFileLastChangedTime, Connection h2con, ConfigReader configuration, int iterations){
+            
+
+            }
+        }*/
 }
